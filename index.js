@@ -24,29 +24,28 @@ var urlencodedParser = bodyParser.urlencoded({ extended: false });
 
 app.get('/',function (req,res) {
 	
-	var transporter = nodemailer.createTransport({
-	  service: 'gmail',
-	  auth: {
-	    user: 'rabenjamu@gmail.com',
-	    pass: 'seykyfejxxueedtv'
-	  }
-	});
-
-	var mailOptions = {
-	  from: 'rabenjamu@gmail.com',
-	  to: 'rabenjako@gmail.com',
-	  subject: 'Sending Email using Node.js',
-	  text: 'That was easy!'
-	};
-
-	transporter.sendMail(mailOptions, function(error, info){
-	  if (error) {
-	    console.log(error);
-	    res.send(error);
-	  } else {
-	    console.log('Email sent: ' + info.response);
-	  	res.send('Email sent: ' + info.response);
-	  }
+	var depot=req.body;
+	//console.log(depot);
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  //console.log(utilisateur._id);
+	  var newvalues = { $set: {dateSortie: new Date() } };
+	  dbo.collection("DepotVoiture").aggregate(
+		 [ 
+		 	{ 
+		 		$group : {
+		 		 _id :{ $dateToString: {date: "$dateDepot", format: "%Y-%m-%d"}},
+		 		 count: { $count:{ } }
+		 		} 
+		 	}
+		 ] 
+		 ).toArray(function (err,ress) {
+		 	if(err) res.send(err);
+			db.close();
+			console.log(ress);
+			res.send(ress);
+		});
 	}); 
 });
 
@@ -222,6 +221,34 @@ app.post('/sortieVoiture',jsonParser, function (req,res) {
 	    db.close();
 	    res.send(ress);
 	  });
+	}); 
+});
+
+app.get('/depotVoitureJour', function (req,res) {
+	var depot=req.body;
+	//console.log(depot);
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  //console.log(utilisateur._id);
+	  var newvalues = { $set: {dateSortie: new Date() } };
+	  dbo.collection("DepotVoiture").aggregate(
+		 [ 
+		 	{ 
+		 		$group : {
+		 		 _id :{ $dateToString: {date: "$dateDepot", format: "%Y-%m-%d"}},
+		 		 count: { $count:{ } }
+		 		}
+		 	},
+		 	{		 		
+		 		$sort:{ count:1 } 
+		 	}
+		 ] 
+		 ).toArray(function (err,ress) {
+			db.close();
+			console.log(ress);
+			res.send(ress);
+		});
 	}); 
 });
 
