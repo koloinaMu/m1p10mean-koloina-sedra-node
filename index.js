@@ -11,6 +11,8 @@ const password = ("Kokoloina.2422");
 const uri =
 "mongodb+srv://Koloina:Kokoloina.2422@cluster0.6vrux.mongodb.net/?retryWrites=true&w=majority";
 var md5=require("md5");
+var nodemailer = require('nodemailer');
+
 
  
 // create application/json parser
@@ -21,24 +23,31 @@ var MongoClient=mongo.MongoClient;
 var urlencodedParser = bodyParser.urlencoded({ extended: false });
 
 app.get('/',function (req,res) {
-	//console.log(uri);
-	MongoClient.connect(uri, function(err, db) {
-		console.log("inside connect");
-	  if (err) {
-	  	console.log(err);
-	  	throw err;
+	
+	var transporter = nodemailer.createTransport({
+	  service: 'gmail',
+	  auth: {
+	    user: 'rabenjamu@gmail.com',
+	    pass: 'seykyfejxxueedtv'
 	  }
-	  var dbo = db.db("mongomean");
-	 // console.log(table);
-	   dbo.collection("SuperAdmin").find({}).toArray(  function(err, ress) {
-	    if (err){
-	    	res.send(null);
-	    } 
-	    db.close();
-	    res.send((ress));
-	  });
+	});
+
+	var mailOptions = {
+	  from: 'rabenjamu@gmail.com',
+	  to: 'rabenjako@gmail.com',
+	  subject: 'Sending Email using Node.js',
+	  text: 'That was easy!'
+	};
+
+	transporter.sendMail(mailOptions, function(error, info){
+	  if (error) {
+	    console.log(error);
+	    res.send(error);
+	  } else {
+	    console.log('Email sent: ' + info.response);
+	  	res.send('Email sent: ' + info.response);
+	  }
 	}); 
-	//res.send("let's see");
 });
 
 app.post('/inscription',jsonParser,function (req,res) {
@@ -98,6 +107,31 @@ app.post('/update',jsonParser, function (req,res) {
 	    if (err) throw err;
 	   // console.log(ress);
 	    db.close();
+	    /* envoi mail de validation */
+	    var transporter = nodemailer.createTransport({
+		  service: 'gmail',
+		  auth: {
+		    user: 'rabenjamu@gmail.com',
+		    pass: 'seykyfejxxueedtv'
+		  }
+		});
+
+		var mailOptions = {
+		  from: 'rabenjamu@gmail.com',
+		  to: utilisateur.mail,
+		  subject: 'Validation de votre compte',
+		  text: 'Votre inscription a bien été validée, vous pouvez désormais vous connecter'
+		};
+
+		transporter.sendMail(mailOptions, function(error, info){
+		  if (error) {
+		    console.log(error);
+		    res.send(error);
+		  } else {
+		    console.log('Email sent: ' + info.response);
+		  	res.send('Email sent: ' + info.response);
+		  }
+		}); 
 	    res.send("okey");
 	  });
 	}); 
