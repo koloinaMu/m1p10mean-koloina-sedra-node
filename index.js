@@ -31,16 +31,8 @@ app.get('/',function (req,res) {
 	  var dbo = db.db("mongomean");
 	  //console.log(utilisateur._id);
 	  var newvalues = { $set: {dateSortie: new Date() } };
-	  dbo.collection("DepotVoiture").aggregate(
-		 [ 
-		 	{ 
-		 		$group : {
-		 		 _id :{ $dateToString: {date: "$dateDepot", format: "%Y-%m-%d"}},
-		 		 count: { $count:{ } }
-		 		} 
-		 	}
-		 ] 
-		 ).toArray(function (err,ress) {
+	  var histo={objet:'obj',dateHistorique:new Date()};
+	  dbo.collection("Historique").insertOne(histo,function (err,ress) {
 		 	if(err) res.send(err);
 			db.close();
 			console.log(ress);
@@ -153,19 +145,32 @@ app.post('/depot-voiture',jsonParser,function (req,res) {
 	  if (err) throw err;
 	  var dbo = db.db("mongomean");
 	  var date=new Date();
-	  depot.dateDepot=date;
-	  dbo.collection("DepotVoiture").insertOne(depot, function(err, ress) {
-	    if (err) throw err;
-	    var o_id = new mongo.ObjectId(ress.insertedId.toString());
-	    var query={utilisateur:  depot.utilisateur,voiture:depot.voiture,dateDepot:date};
-	    dbo.collection("DepotVoiture").findOne(query,function (err,resFind) {	    	
-		    if (err){
-		    	res.send(null);
-		    } 
-	    	res.send(JSON.stringify(resFind));
-	    });	  
-	    db.close();
-	  });
+	  var depotFind={ utilisateur:depot.utilisateur, voiture:depot.voiture,dateSortie:null };
+	  dbo.collection("DepotVoiture").findOne(depotFind,function (err,ressD) {
+	  	//console.log(ressD);
+	  	if(ressD==null){
+	  		depot.dateDepot=date;
+			  dbo.collection("DepotVoiture").insertOne(depot, function(err, ress) {
+			    if (err) throw err;
+			    var o_id = new mongo.ObjectId(ress.insertedId.toString());
+			   // console.log(o_id);
+			    //var query={utilisateur:  depot.utilisateur,voiture:depot.voiture};
+			    var query={"utilisateur._id":o_id}; 
+			    var dep={_id:o_id};
+			    dbo.collection("DepotVoiture").findOne(dep,function (err,resFind) {
+			    	var historique={depotVoiture:resFind,dateHistorique:date};
+			    	dbo.collection("Historique").insertOne(historique,function(err,resHisto) { 
+				    	db.close();
+				    	res.send("insertion reussie");
+				    });
+			    });    
+			    //res.send("Insertion reussie");
+			  });
+			}else{
+				db.close();
+				res.send("Votre voiture est au garage");
+			}
+	  });	  
 	}); 
 });
 
