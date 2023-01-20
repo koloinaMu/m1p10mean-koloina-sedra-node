@@ -179,11 +179,18 @@ app.post('/reparations-courantes',jsonParser,function(req,res) {
 	MongoClient.connect(uri,function (err,db) {
 		if(err) throw err;
 		var dbo=db.db("mongomean");
-		var query={ utilisateur:utilisateur, depotSortie:null};
+		console.log(utilisateur);
+		var query= {
+			$and:[
+			{utilisateur:utilisateur},
+			{'dateSortie':{$exists:false}}
+			]
+		};
 		dbo.collection("DepotVoiture").find(query).toArray(function (err,ress) {
-			db.close();
+			console.log(query);
+			db.close();			
 			res.send(ress);
-		})
+		});
 	})
 });
 
