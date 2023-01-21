@@ -1,15 +1,15 @@
 var express=require("express");
 var app=express();
-var url=require("url");
+//var url=require("url");
 var cors=require('cors');
 var Utilisateur=require('./objets/Utilisateur');
 app.use(cors());
 var bodyParser = require('body-parser');
 var mongo = require('mongodb');
-var url = "mongodb://127.0.0.1:27017/";
-const password = ("Kokoloina.2422");
-const uri =
-"mongodb+srv://Koloina:Kokoloina.2422@cluster0.6vrux.mongodb.net/?retryWrites=true&w=majority";
+var uri = "mongodb://127.0.0.1:27017/";
+//const password = ("Kokoloina.2422");
+/*const uri =
+"mongodb+srv://sedra:C6fyXVofJ4sunFqw@cluster0.a5zbvu8.mongodb.net/?retryWrites=true&w=majority";*/
 var md5=require("md5");
 
  
@@ -69,7 +69,7 @@ app.post('/connexion',jsonParser, function (req,res) {
 	MongoClient.connect(uri, function(err, db) {
 	  if (err) throw err;
 	  var dbo = db.db("mongomean");
-	  var query={mail:utilisateur.mail,mdp:md5(utilisateur.mdp),etat:1};
+	  var query={mail:utilisateur.mail,mdp:md5(utilisateur.mdp)};
 	  var table="Utilisateur";
 	  if(utilisateur.type==1){
 	  	table="SuperAdmin";
@@ -103,6 +103,7 @@ app.post('/update',jsonParser, function (req,res) {
 	}); 
 });
 
+
 app.get('/utilisateurs',function(req,res) {
 	MongoClient.connect(uri,function (err,db) {
 		if(err) throw err;
@@ -121,6 +122,8 @@ app.post('/depot-voiture',jsonParser,function (req,res) {
 	  var dbo = db.db("mongomean");
 	  var date=new Date();
 	  depot.dateDepot=date;
+	  depot.dateSortie=null;
+	  depot.dateReception= null;
 	  dbo.collection("DepotVoiture").insertOne(depot, function(err, ress) {
 	    if (err) throw err;
 	    var o_id = new mongo.ObjectId(ress.insertedId.toString());
@@ -148,6 +151,64 @@ app.post('/reparations-courantes',jsonParser,function(req,res) {
 		})
 	})
 });
+
+// atelier----------------------------------------------------------------------
+
+app.post('/receptionner_vehicule/:id',jsonParser, function (req,res) {
+	var depot=req.body;
+	//console.log('id '+ depot._id);
+	var id=req.params.id;
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var myquery = { _id: new mongo.ObjectId(id) };
+	  //console.log(utilisateur._id);
+	  var date= new Date(); 
+	  depot.dateReception = date;
+
+	  var newvalues = { $set: { dateReception : date } };
+	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
+	    if (err) throw err;
+	   // console.log(ress);
+	    db.close();
+	    res.send(ress);
+	  });
+	}); 
+});
+
+app.get('/les_depots',function(req,res) {
+	//var utilisateur=req.body;
+	MongoClient.connect(uri,function (err,db) {
+		if(err) throw err;
+		var dbo=db.db("mongomean");
+		var query={dateReception: null};
+		dbo.collection("DepotVoiture").find(query).toArray(function (err,ress) {
+			db.close();
+			res.send(ress);
+		})
+	})
+});
+
+
+//-------------------------------------------------
+
+
+app.post('/facturation',jsonParser,function(req,res) {
+	var mail=req.body;
+	//id= utilisateur._id;
+	//console.log(id);
+	MongoClient.connect(uri,function (err,db) {
+		if(err) throw err;
+		var dbo=db.db("mongomean");
+		var query={'utilisateur.mail': mail};
+		//{ Qty: { $eq: 100 }}
+		dbo.collection("facture").find(query).toArray(function (err,ress) {
+			
+			res.send(ress);
+		})
+	})
+});
+
 
 app.post('/recherche',jsonParser,function(req,res) {
 	var aPropos=req.body;
