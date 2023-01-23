@@ -24,69 +24,81 @@ var urlencodedParser = bodyParser.urlencoded({ extended: false });
 
 app.get('/',function (req,res) {
 	
-	var depot=req.body;
-	//console.log(depot);
-	MongoClient.connect(uri, function(err, db) {
-	  if (err) throw err;
-	  var dbo = db.db("mongomean");
-	  //console.log(utilisateur._id);
-	  dbo.collection("DepotVoiture").aggregate(
-		 [ 
-		 	{
-				$unwind: "$paiements"
-			},
-			{
-			    $unwind: "$paiements.datePaiement"
-			},
-			{
-			    $unwind: "$paiements.montant"
-			},		 	
-		 	{ 
-		 		$group : {
-		 		 _id :{ $dateToString: {date: "$paiements.datePaiement", format: "%Y-%m"}},
-		 		 count: { $sum: "$paiements.montant" }
-		 		}
-		 	},
-		 	{		 		
-		 		$sort:{ _id:1 } 
-		 	}
-		 ] 
-		 ).toArray(function (err,ress) {
-			db.close();
-			const resultt = ress.find(({ _id }) => _id === '2023-01-23');
-			var result=ress;
-			var day = new Date((new Date().getFullYear()-1)+'-'+
-				convertDizaine(new Date().getMonth()+1)+'-'+'01');
-			var lastMonth = new Date();
-			var nextMonth = new Date(day);
-			console.log(nextMonth);
-			console.log(lastMonth);
-			var toutes=[];
-			var i=0;
-			while(nextMonth<=lastMonth){
-				console.log(nextMonth);
-				var dateCompare=nextMonth.getFullYear()+'-'+
-					convertDizaine(nextMonth.getMonth()+1)
-				var recherche=ress.find(({ _id }) => _id === dateCompare);
-				if(recherche!=undefined){
-					//toutes[i].count=recherche.count;
-					toutes[i]={
-						_id:dateCompare,
-						count:recherche.count
+	MongoClient.connect(uri,function(err,db) {
+			if (err) throw err;
+	  		var dbo = db.db("mongomean");
+
+			dbo.collection("DepotVoiture").aggregate(
+			 [ 
+			 	{
+					$unwind: "$paiements"
+				},
+				{
+				    $unwind: "$paiements.datePaiement"
+				},
+				{
+				    $unwind: "$paiements.montant"
+				},		 	
+			 	{ 
+			 		$group : {
+			 		 _id :{ $dateToString: {date: "$paiements.datePaiement", format: "%Y-%m"}},
+			 		 count: { $sum: "$paiements.montant" }
+			 		}
+			 	},
+			 	{		 		
+			 		$sort:{ _id:1 } 
+			 	}
+			 ] 
+			 ).toArray(function (err,ress) {
+				db.close();
+				var day = new Date((new Date().getFullYear()-1)+'-'+
+					convertDizaine(new Date().getMonth()+1)+'-'+'01');
+				var lastMonth = new Date();
+				var nextMonth = new Date(day);
+				var toutesMois=[];
+				dbo.collection("Depense").aggregate(
+				  	[ 		 	
+					 	{ 
+					 		$group : {
+					 		 _id :{ $dateToString: {date: "$dateDepense", format: "%Y-%m"}},
+					 		 count: { $sum: "$montant" }
+					 		}
+					 	},
+					 	{		 		
+					 		$sort:{ _id:1 } 
+					 	}
+					 ] 
+				  ).toArray(function(err,resDep){
+				  	var i=0;
+					while(nextMonth<=lastMonth){
+						console.log(nextMonth);
+						var dateCompare=nextMonth.getFullYear()+'-'+
+							convertDizaine(nextMonth.getMonth()+1)
+						var recherche=ress.find(({ _id }) => _id === dateCompare);
+						var rechercheDep=resDep.find(({ _id }) => _id === dateCompare);
+						var benefice=0;						
+						if(recherche==undefined)
+						{
+							benefice=0; 
+						}
+						else {
+							benefice=recherche.count;
+						}
+						if(rechercheDep!=undefined){
+							benefice=benefice-rechercheDep.count;
+						} 
+						toutesMois[i]={
+							_id:dateCompare,
+							count:benefice
+						}
+						i++;
+						nextMonth.setMonth(nextMonth.getMonth() + 1);
 					}
-				}else{
-					toutes[i]={
-						_id:dateCompare,
-						count:0
-					}
-				}
-				i++;
-				nextMonth.setMonth(nextMonth.getMonth() + 1);
-			}
-			console.log(toutes);			
-			res.send(toutes);
-		});
-	}); 
+					console.log(toutesMois);			
+					res.send(toutesMois);
+				  });				
+			});
+		})
 });
 
 function convertDizaine(chiffre) {
@@ -572,6 +584,103 @@ app.get('/tmpsReparationsMoyens',function(req,res){
 			res.send(toutesMois);
 		});
 	})
+});
+
+app.post('/depenser',jsonParser,function (req,res) {
+	var depot=req.body;
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var date=new Date();
+	  for(let i=0;i<depot.length;i++){
+	  	depot[i].dateDepense=date;
+	  	//console.log(depot[i]);
+	  }
+	  	dbo.collection("Depense").insertMany(depot,function(err,ress){
+
+		  db.close();
+		  res.send("insert");
+	  	});
+	}); 
+});
+
+app.get('/beneficeMensuel',function(req,res){
+	MongoClient.connect(uri,function(err,db) {
+			if (err) throw err;
+	  		var dbo = db.db("mongomean");
+
+			dbo.collection("DepotVoiture").aggregate(
+			 [ 
+			 	{
+					$unwind: "$paiements"
+				},
+				{
+				    $unwind: "$paiements.datePaiement"
+				},
+				{
+				    $unwind: "$paiements.montant"
+				},		 	
+			 	{ 
+			 		$group : {
+			 		 _id :{ $dateToString: {date: "$paiements.datePaiement", format: "%Y-%m"}},
+			 		 count: { $sum: "$paiements.montant" }
+			 		}
+			 	},
+			 	{		 		
+			 		$sort:{ _id:1 } 
+			 	}
+			 ] 
+			 ).toArray(function (err,ress) {
+				db.close();
+				var day = new Date((new Date().getFullYear()-1)+'-'+
+					convertDizaine(new Date().getMonth()+1)+'-'+'01');
+				var lastMonth = new Date();
+				var nextMonth = new Date(day);
+				var toutesMois=[];
+				dbo.collection("Depense").aggregate(
+				  	[ 		 	
+					 	{ 
+					 		$group : {
+					 		 _id :{ $dateToString: {date: "$dateDepense", format: "%Y-%m"}},
+					 		 count: { $sum: "$montant" }
+					 		}
+					 	},
+					 	{		 		
+					 		$sort:{ _id:1 } 
+					 	}
+					 ] 
+				  ).toArray(function(err,resDep){
+				  	console.log(resDep);
+				  	var i=0;
+					while(nextMonth<=lastMonth){
+						console.log(nextMonth);
+						var dateCompare=nextMonth.getFullYear()+'-'+
+							convertDizaine(nextMonth.getMonth()+1)
+						var recherche=ress.find(({ _id }) => _id === dateCompare);
+						var rechercheDep=resDep.find(({ _id }) => _id === dateCompare);
+						var benefice=0;
+						if(recherche==undefined)
+						{
+							benefice=0; 
+						}
+						else {
+							benefice=recherche.count;
+						}
+						if(rechercheDep!=undefined){
+							benefice=benefice-rechercheDep.count;
+						} 
+						toutesMois[i]={
+							_id:dateCompare,
+							count:benefice
+						}
+						i++;
+						nextMonth.setMonth(nextMonth.getMonth() + 1);
+					}
+					console.log(toutesMois);			
+					res.send(toutesMois);
+				  });				
+			});
+		})
 });
 
 app.listen(3000,function () {
