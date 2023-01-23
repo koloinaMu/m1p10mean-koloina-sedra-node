@@ -264,6 +264,78 @@ app.get('/depotVoitureJour', function (req,res) {
 	}); 
 });
 
+app.post('/paiement',jsonParser,function(req,res) {
+	var paiement=req.body;
+	console.log(paiement);
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var myquery = { _id: new mongo.ObjectId(paiement.id) };
+	  //console.log(utilisateur._id);
+	  var newvalues = { $push: {paiements:
+	  	{
+	  		datePaiement: new Date(),
+	  		montant: paiement.montant,
+	  		etat:0,
+	  		couleur:'yellow'
+	  	}
+	   }  };
+	  dbo.collection("DepotVoiture").updateMany(myquery, newvalues, function(err, ress) {
+	    if (err) throw err;
+	    //console.log(ress);
+	    db.close();
+	    res.send(ress);
+	  });
+	}); 
+});
+
+app.get('/factures-non-reglees',function(req,res) {
+	MongoClient.connect(uri,function (err,db) {
+		if(err) throw err;
+		var dbo=db.db("mongomean");
+		var query= {'factureReglee':{$exists:false}};
+		dbo.collection("DepotVoiture").find(query).toArray(function (err,ress) {
+			console.log(query);
+			db.close();			
+			res.send(ress);
+		});
+	})
+});
+
+app.post('/validerPaiement',jsonParser,function(req,res) {
+	var paiement=req.body;
+	console.log(paiement);
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var myquery = { _id: new mongo.ObjectId(paiement.id) };
+	  //console.log(utilisateur._id);
+	 /* var newvalues = { $set: {paiements:[
+	  	{
+	  		datePaiement: new Date(),
+	  		montant: paiement.montant,
+	  		etat:0,
+	  		couleur:'yellow'
+	  	}
+	  ] } };*/
+	  var newvalues={$pull:{"paiements":paiement.paiement}};
+	  console.log(newvalues);
+	    paiement.paiement.datePaiement=new Date(paiement.paiement.datePaiement);
+	  dbo.collection("DepotVoiture").updateMany(myquery, newvalues, function(err, ress) {
+	    if (err) throw err;
+	    //console.log(ress);
+	    paiement.paiement.etat=1;
+	    paiement.paiement.couleur="green";
+	    newvalues={$push:{"paiements":paiement.paiement}};
+	    dbo.collection("DepotVoiture").updateMany(myquery,newvalues,function(err,ressPush){
+	    	if (err) throw err;
+		    db.close();
+		    res.send(ressPush);
+	    });
+	  });
+	}); 
+});
+
 app.listen(3000,function () {
 	console.log("start app");
 });
