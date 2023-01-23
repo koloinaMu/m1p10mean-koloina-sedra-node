@@ -30,16 +30,69 @@ app.get('/',function (req,res) {
 	  if (err) throw err;
 	  var dbo = db.db("mongomean");
 	  //console.log(utilisateur._id);
-	  var newvalues = { $set: {dateSortie: new Date() } };
-	  var histo={objet:'obj',dateHistorique:new Date()};
-	  dbo.collection("Historique").insertOne(histo,function (err,ress) {
-		 	if(err) res.send(err);
+	  dbo.collection("DepotVoiture").aggregate(
+		 [ 
+		 	{
+				$unwind: "$paiements"
+			},
+			{
+			    $unwind: "$paiements.datePaiement"
+			},
+			{
+			    $unwind: "$paiements.montant"
+			},		 	
+		 	{ 
+		 		$group : {
+		 		 _id :{ $dateToString: {date: "$paiements.datePaiement", format: "%Y-%m"}},
+		 		 count: { $sum: "$paiements.montant" }
+		 		}
+		 	},
+		 	{		 		
+		 		$sort:{ _id:1 } 
+		 	}
+		 ] 
+		 ).toArray(function (err,ress) {
 			db.close();
-			console.log(ress);
-			res.send(ress);
+			const resultt = ress.find(({ _id }) => _id === '2023-01-23');
+			var result=ress;
+			var day = new Date((new Date().getFullYear()-1)+'-'+
+				convertDizaine(new Date().getMonth()+1)+'-'+'01');
+			var lastMonth = new Date();
+			var nextMonth = new Date(day);
+			console.log(nextMonth);
+			console.log(lastMonth);
+			var toutes=[];
+			var i=0;
+			while(nextMonth<=lastMonth){
+				console.log(nextMonth);
+				var dateCompare=nextMonth.getFullYear()+'-'+
+					convertDizaine(nextMonth.getMonth()+1)
+				var recherche=ress.find(({ _id }) => _id === dateCompare);
+				if(recherche!=undefined){
+					//toutes[i].count=recherche.count;
+					toutes[i]={
+						_id:dateCompare,
+						count:recherche.count
+					}
+				}else{
+					toutes[i]={
+						_id:dateCompare,
+						count:0
+					}
+				}
+				i++;
+				nextMonth.setMonth(nextMonth.getMonth() + 1);
+			}
+			console.log(toutes);			
+			res.send(toutes);
 		});
 	}); 
 });
+
+function convertDizaine(chiffre) {
+	if(chiffre<10) return '0'+chiffre;
+	else return chiffre;
+}
 
 app.post('/inscription',jsonParser,function (req,res) {
 	var utilisateur=req.body;
@@ -334,6 +387,191 @@ app.post('/validerPaiement',jsonParser,function(req,res) {
 	    });
 	  });
 	}); 
+});
+
+app.post('/chiffreAffaire',jsonParser,function(req,res){
+	var condition=req.body;
+	console.log(condition);
+	if(condition.option=='Mois'){
+		MongoClient.connect(uri,function(err,db) {
+			if (err) throw err;
+	  		var dbo = db.db("mongomean");
+
+			dbo.collection("DepotVoiture").aggregate(
+			 [ 
+			 	{
+					$unwind: "$paiements"
+				},
+				{
+				    $unwind: "$paiements.datePaiement"
+				},
+				{
+				    $unwind: "$paiements.montant"
+				},		 	
+			 	{ 
+			 		$group : {
+			 		 _id :{ $dateToString: {date: "$paiements.datePaiement", format: "%Y-%m"}},
+			 		 count: { $sum: "$paiements.montant" }
+			 		}
+			 	},
+			 	{		 		
+			 		$sort:{ _id:1 } 
+			 	}
+			 ] 
+			 ).toArray(function (err,ress) {
+				db.close();
+				var day = new Date((new Date().getFullYear()-1)+'-'+
+					convertDizaine(new Date().getMonth()+1)+'-'+'01');
+				var lastMonth = new Date();
+				var nextMonth = new Date(day);
+				var toutesMois=[];
+				var i=0;
+				while(nextMonth<=lastMonth){
+					console.log(nextMonth);
+					var dateCompare=nextMonth.getFullYear()+'-'+
+						convertDizaine(nextMonth.getMonth()+1)
+					var recherche=ress.find(({ _id }) => _id === dateCompare);
+					if(recherche!=undefined){
+						//toutes[i].count=recherche.count;
+						toutesMois[i]={
+							_id:dateCompare,
+							count:recherche.count
+						}
+					}else{
+						toutesMois[i]={
+							_id:dateCompare,
+							count:0
+						}
+					}
+					i++;
+					nextMonth.setMonth(nextMonth.getMonth() + 1);
+				}
+				console.log(toutesMois);			
+				res.send(toutesMois);
+			});
+		})
+	} else{
+		MongoClient.connect(uri, function(err, db) {
+		  if (err) throw err;
+		  var dbo = db.db("mongomean");
+		  //console.log(utilisateur._id);
+		  dbo.collection("DepotVoiture").aggregate(
+			 [ 
+			 	{
+					$unwind: "$paiements"
+				},
+				{
+				    $unwind: "$paiements.datePaiement"
+				},
+				{
+				    $unwind: "$paiements.montant"
+				},		 	
+			 	{ 
+			 		$group : {
+			 		 _id :{ $dateToString: {date: "$paiements.datePaiement", format: "%Y-%m-%d"}},
+			 		 count: { $sum: "$paiements.montant" }
+			 		}
+			 	},
+			 	{		 		
+			 		$sort:{ _id:1 } 
+			 	}
+			 ] 
+			 ).toArray(function (err,ress) {
+				db.close();
+				var result=ress;
+				var day = new Date('2023-01-01');
+				var lastDay = new Date('2023-01-31');
+				var nextDay = new Date(day);
+				var toutes=[];
+				var i=0;
+				while(nextDay<=lastDay){
+					var dateCompare=nextDay.getFullYear()+'-'+
+						convertDizaine(nextDay.getMonth()+1)+'-'+
+						convertDizaine(nextDay.getDate());
+					var recherche=ress.find(({ _id }) => _id === dateCompare);
+					if(recherche!=undefined){
+						toutes[i]={
+							_id:dateCompare,
+							count:recherche.count
+						}
+					}else{
+						toutes[i]={
+							_id:dateCompare,
+							count:0
+						}
+					}
+					i++;
+					nextDay.setDate(nextDay.getDate() + 1);
+				}
+				res.send(toutes);
+			});
+		});
+	}
+});
+
+app.get('/tmpsReparationsMoyens',function(req,res){
+	MongoClient.connect(uri,function (err,db) {
+		if(err) throw err;
+		var dbo=db.db("mongomean");
+		var query= [ 
+		 	{
+				$unwind: "$dateDepot"
+			},
+			{
+			    $unwind: "$dateSortie"
+			},		 	
+		 	{ 
+		 		$group : {
+		 		 _id :{ $dateToString: {date: "$dateSortie", format: "%Y-%m"}},
+		 		 averageTime:
+                    {
+                       $avg:
+                          {
+                             $dateDiff:
+                                {
+                                    startDate: "$dateDepot",
+                                    endDate: "$dateSortie",
+                                    unit: "day"
+                                }
+                           }
+                    }
+		 		}
+		 	},
+		 	{		 		
+		 		$sort:{ _id:1 } 
+		 	}
+		 ] ;
+		dbo.collection("DepotVoiture").aggregate(query).toArray(function (err,ress) {
+			db.close();		
+			var day = new Date((new Date().getFullYear()-1)+'-'+
+				convertDizaine(new Date().getMonth()+1)+'-'+'01');
+			var lastMonth = new Date();
+			var nextMonth = new Date(day);
+			var toutesMois=[];
+			var i=0;
+			while(nextMonth<=lastMonth){
+				//console.log(nextMonth);
+				var dateCompare=nextMonth.getFullYear()+'-'+
+					convertDizaine(nextMonth.getMonth()+1)
+				var recherche=ress.find(({ _id }) => _id === dateCompare);
+				if(recherche!=undefined){
+					//toutes[i].count=recherche.count;
+					toutesMois[i]={
+						_id:dateCompare,
+						count:recherche.averageTime
+					}
+				}else{
+					toutesMois[i]={
+						_id:dateCompare,
+						count:0
+					}
+				}
+				i++;
+				nextMonth.setMonth(nextMonth.getMonth() + 1);
+			}
+			res.send(toutesMois);
+		});
+	})
 });
 
 app.listen(3000,function () {
