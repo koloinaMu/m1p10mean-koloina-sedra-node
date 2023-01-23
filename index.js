@@ -3,6 +3,7 @@ var app=express();
 //var url=require("url");
 var cors=require('cors');
 var Utilisateur=require('./objets/Utilisateur');
+var reparationPrix=require('./objets/ReparationPrix');
 app.use(cors());
 var bodyParser = require('body-parser');
 var mongo = require('mongodb');
@@ -189,9 +190,91 @@ app.get('/les_depots',function(req,res) {
 	})
 });
 
+app.get('/dans_atelier',function(req,res) {
+	//var utilisateur=req.body;
+	MongoClient.connect(uri,function (err,db) {
+		if(err) throw err;
+		var dbo=db.db("mongomean");
+		var query={ dateReception: {$ne : null }  };
+		dbo.collection("DepotVoiture").find(query).toArray(function (err,ress) {
+			db.close();
+			res.send(ress);
+		})
+	})
+});
+
+
+app.post('/modifier_avancement/:avancement/:idReparation/:idDepot',jsonParser, function (req,res) {
+	var depot=req.body;
+	//console.log('id '+ depot._id);
+	var idDepot=req.params.idDepot;
+	var avancement=Number(req.params.avancement);
+	var idReparation=req.params.idReparation;
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var myquery = { _id: new mongo.ObjectId(idDepot), 'reparation._id': idReparation.toString()};
+	  //console.log(utilisateur._id);
+	  
+	  //var date= new Date(); 
+	  //depot.dateReception = date;
+
+	  var newvalues = { $set: { 'reparation.$.avancement': avancement } };
+	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
+	    if (err) throw err;
+	   // console.log(ress);
+	    db.close();
+	    res.send(ress);
+	  });
+	}); 
+});
+
+
+
+
 
 //-------------------------------------------------
+app.post('/ajouterreparationchoisissez/:idDepot/:idReparation/:nom/:prix',jsonParser, function (req,res) {
+	var depot=req.body;
+	//console.log('id '+ depot._id);
+	var idDepot=req.params.idDepot;
+	var idReparation=req.params.idReparation;
+	var nom=req.params.nom;
+	var prix=req.params.prix;
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var myquery = { _id: new mongo.ObjectId(idDepot) };
+	  //console.log(utilisateur._id);
+	  
+	  var date= new Date(); 
+	  depot.dateReception = date;
 
+	//reparation= reparationPrix.getReparationPrix_FromId(idReparation);
+
+	  var newvalues = { $push: {reparation: {'_id': idReparation, 'nom': nom , 'prix': prix , 'avancement': 0 } } };
+	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
+	    if (err) throw err;
+	   // console.log(ress);
+	    db.close();
+	    res.send(ress);
+	  });
+	}); 
+});
+
+
+
+
+app.get('/reparation_prix',function(req,res) {
+	MongoClient.connect(uri,function (err,db) {
+		if(err) throw err;
+		var dbo=db.db("mongomean");
+		dbo.collection("reparationPrix").find({}).toArray(function (err,ress) {
+			db.close();
+			res.send(ress);
+		})
+	})
+});
 
 app.post('/facturation',jsonParser,function(req,res) {
 	var mail=req.body;
