@@ -145,7 +145,7 @@ app.post('/reparations-courantes',jsonParser,function(req,res) {
 	MongoClient.connect(uri,function (err,db) {
 		if(err) throw err;
 		var dbo=db.db("mongomean");
-		var query={ utilisateur:utilisateur, depotSortie:null};
+		var query={ utilisateur:utilisateur, dateSortie:null };
 		dbo.collection("DepotVoiture").find(query).toArray(function (err,ress) {
 			db.close();
 			res.send(ress);
@@ -195,7 +195,7 @@ app.get('/dans_atelier',function(req,res) {
 	MongoClient.connect(uri,function (err,db) {
 		if(err) throw err;
 		var dbo=db.db("mongomean");
-		var query={ dateReception: {$ne : null }  };
+		var query={ dateReception: {$ne : null } , dateSortie: null  };
 		dbo.collection("DepotVoiture").find(query).toArray(function (err,ress) {
 			db.close();
 			res.send(ress);
@@ -275,6 +275,30 @@ app.get('/reparation_prix',function(req,res) {
 		})
 	})
 });
+
+app.post('/recuperer_voiture/:id',jsonParser, function (req,res) {
+	var depot=req.body;
+	//console.log('id '+ depot._id);
+	var id=req.params.id;
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var myquery = { _id: new mongo.ObjectId(id) };
+	  //console.log(utilisateur._id);
+	  var date= new Date(); 
+	  depot.dateSortie = date;
+
+	  var newvalues = { $set: { dateSortie : date } };
+	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
+	    if (err) throw err;
+	   // console.log(ress);
+	    db.close();
+	    res.send(ress);
+	  });
+	}); 
+});
+
+
 
 app.post('/facturation',jsonParser,function(req,res) {
 	var mail=req.body;
