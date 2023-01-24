@@ -7,10 +7,12 @@ var reparationPrix=require('./objets/ReparationPrix');
 app.use(cors());
 var bodyParser = require('body-parser');
 var mongo = require('mongodb');
-var uri = "mongodb://127.0.0.1:27017/";
+//var uri = "mongodb://127.0.0.1:27017/";
 //const password = ("Kokoloina.2422");
-/*const uri =
-"mongodb+srv://sedra:C6fyXVofJ4sunFqw@cluster0.a5zbvu8.mongodb.net/?retryWrites=true&w=majority";*/
+//const uri =
+//"mongodb+srv://sedra:C6fyXVofJ4sunFqw@cluster0.a5zbvu8.mongodb.net/?retryWrites=true&w=majority";
+const uri =
+"mongodb+srv://Koloina:Kokoloina.2422@cluster0.6vrux.mongodb.net/?retryWrites=true&w=majority";
 var md5=require("md5");
 var nodemailer = require('nodemailer');
 
@@ -291,7 +293,7 @@ app.get('/les_depots',function(req,res) {
 	MongoClient.connect(uri,function (err,db) {
 		if(err) throw err;
 		var dbo=db.db("mongomean");
-		var query={dateReception: null};
+		var query={dateReception: {$exists:false}};
 		dbo.collection("DepotVoiture").find(query).toArray(function (err,ress) {
 			db.close();
 			res.send(ress);
@@ -323,13 +325,13 @@ app.post('/modifier_avancement/:avancement/:idReparation/:idDepot',jsonParser, f
 	MongoClient.connect(uri, function(err, db) {
 	  if (err) throw err;
 	  var dbo = db.db("mongomean");
-	  var myquery = { _id: new mongo.ObjectId(idDepot), 'reparation._id': idReparation.toString()};
+	  var myquery = { _id: new mongo.ObjectId(idDepot), 'reparations._id': idReparation.toString()};
 	  //console.log(utilisateur._id);
 	  
 	  //var date= new Date(); 
 	  //depot.dateReception = date;
 
-	  var newvalues = { $set: { 'reparation.$.avancement': avancement } };
+	  var newvalues = { $set: { 'reparations.$.avancement': avancement } };
 	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
 	    if (err) throw err;
 	   // console.log(ress);
@@ -362,7 +364,7 @@ app.post('/ajouterreparationchoisissez/:idDepot/:idReparation/:nom/:prix',jsonPa
 
 	//reparation= reparationPrix.getReparationPrix_FromId(idReparation);
 
-	  var newvalues = { $push: {reparation: {'_id': idReparation, 'nom': nom , 'prix': prix , 'avancement': 0 } } };
+	  var newvalues = { $push: {reparations: {'_id': idReparation, 'nom': nom , 'prix': prix , 'avancement': 0 } } };
 	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
 	    if (err) throw err;
 	   // console.log(ress);
@@ -379,7 +381,7 @@ app.get('/reparation_prix',function(req,res) {
 	MongoClient.connect(uri,function (err,db) {
 		if(err) throw err;
 		var dbo=db.db("mongomean");
-		dbo.collection("reparationPrix").find({}).toArray(function (err,ress) {
+		dbo.collection("ReparationPrix").find({}).toArray(function (err,ress) {
 			db.close();
 			res.send(ress);
 		})
