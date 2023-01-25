@@ -3,14 +3,16 @@ var app=express();
 //var url=require("url");
 var cors=require('cors');
 var Utilisateur=require('./objets/Utilisateur');
-var reparationPrix=require('./objets/ReparationPrix');
+//var reparationPrix=require('./objets/ReparationPrix');
 app.use(cors());
 var bodyParser = require('body-parser');
 var mongo = require('mongodb');
-var uri = "mongodb://127.0.0.1:27017/";
+//var uri = "mongodb://127.0.0.1:27017/";
 //const password = ("Kokoloina.2422");
-/*const uri =
-"mongodb+srv://sedra:C6fyXVofJ4sunFqw@cluster0.a5zbvu8.mongodb.net/?retryWrites=true&w=majority";*/
+//const uri =
+//"mongodb+srv://sedra:C6fyXVofJ4sunFqw@cluster0.a5zbvu8.mongodb.net/?retryWrites=true&w=majority";
+const uri =
+"mongodb+srv://Koloina:Kokoloina.2422@cluster0.6vrux.mongodb.net/?retryWrites=true&w=majority";
 var md5=require("md5");
 var nodemailer = require('nodemailer');
 
@@ -31,73 +33,48 @@ app.get('/',function (req,res) {
 
 			dbo.collection("DepotVoiture").aggregate(
 			 [ 
-			 	{
-					$unwind: "$paiements"
-				},
-				{
-				    $unwind: "$paiements.datePaiement"
-				},
-				{
-				    $unwind: "$paiements.montant"
-				},		 	
-			 	{ 
-			 		$group : {
-			 		 _id :{ $dateToString: {date: "$paiements.datePaiement", format: "%Y-%m"}},
-			 		 count: { $sum: "$paiements.montant" }
-			 		}
-			 	},
-			 	{		 		
-			 		$sort:{ _id:1 } 
-			 	}
-			 ] 
+		 	{
+		 		$match: {
+		 			"utilisateur":{"_id":"63cfedd75145130f76f92781","id":"","nom":"kolo2","prenom":"kolo2","mail":"rabenjako@gmail.com","mdp":"7018ed17bd6407ff268c7b250d36fa3a","voiture":{"id":"","immatriculation":"9876TAD","couleur":"Noir"},"type":0,"etat":1}
+		 		}
+		 	},
+		 	{
+				$unwind: "$voiture"
+			},		 	
+		 	{ 
+		 		$group : {
+		 		 _id :  {voiture:"$voiture",depot:"$dateDepot"} ,
+		 		 reparation: { $push: "$reparations" }
+		 		}
+		 	},
+		 	{
+		 		$addFields:
+		 		{
+				    "reparations": {
+				      "$reduce": {
+				        "input": "$reparation",
+				        "initialValue": [],
+				        "in": { "$concatArrays": [ "$$value", "$$this" ] }
+				      }
+				    }
+				}
+		 	},
+		 	{
+		 		$sort: {
+		 			'_id.depot':1
+		 		}
+		 	}
+		 ] 
 			 ).toArray(function (err,ress) {
+			 	if(err) throw err;
+			 	//console.log(ress);
+			 	var voitures=[];
+			 	for(var i=0;i<ress.length;i++){
+			 		//console.log(ress[i]._id.voiture);
+			 		voitures.push(ress[i]._id.voiture);
+			 	}
 				db.close();
-				var day = new Date((new Date().getFullYear()-1)+'-'+
-					convertDizaine(new Date().getMonth()+1)+'-'+'01');
-				var lastMonth = new Date();
-				var nextMonth = new Date(day);
-				var toutesMois=[];
-				dbo.collection("Depense").aggregate(
-				  	[ 		 	
-					 	{ 
-					 		$group : {
-					 		 _id :{ $dateToString: {date: "$dateDepense", format: "%Y-%m"}},
-					 		 count: { $sum: "$montant" }
-					 		}
-					 	},
-					 	{		 		
-					 		$sort:{ _id:1 } 
-					 	}
-					 ] 
-				  ).toArray(function(err,resDep){
-				  	var i=0;
-					while(nextMonth<=lastMonth){
-						console.log(nextMonth);
-						var dateCompare=nextMonth.getFullYear()+'-'+
-							convertDizaine(nextMonth.getMonth()+1)
-						var recherche=ress.find(({ _id }) => _id === dateCompare);
-						var rechercheDep=resDep.find(({ _id }) => _id === dateCompare);
-						var benefice=0;						
-						if(recherche==undefined)
-						{
-							benefice=0; 
-						}
-						else {
-							benefice=recherche.count;
-						}
-						if(rechercheDep!=undefined){
-							benefice=benefice-rechercheDep.count;
-						} 
-						toutesMois[i]={
-							_id:dateCompare,
-							count:benefice
-						}
-						i++;
-						nextMonth.setMonth(nextMonth.getMonth() + 1);
-					}
-					console.log(toutesMois);			
-					res.send(toutesMois);
-				  });				
+				res.send(ress);
 			});
 		})
 });
@@ -228,7 +205,7 @@ app.post('/depot-voiture',jsonParser,function (req,res) {
 			    	var historique={depotVoiture:resFind,dateHistorique:date};
 			    	dbo.collection("Historique").insertOne(historique,function(err,resHisto) { 
 				    	db.close();
-				    	res.send("insertion reussie");
+				    	res.send(dep);
 				    });
 			    });    
 			    //res.send("Insertion reussie");
@@ -291,7 +268,7 @@ app.get('/les_depots',function(req,res) {
 	MongoClient.connect(uri,function (err,db) {
 		if(err) throw err;
 		var dbo=db.db("mongomean");
-		var query={dateReception: null};
+		var query={dateReception: {$exists:false}};
 		dbo.collection("DepotVoiture").find(query).toArray(function (err,ress) {
 			db.close();
 			res.send(ress);
@@ -323,13 +300,13 @@ app.post('/modifier_avancement/:avancement/:idReparation/:idDepot',jsonParser, f
 	MongoClient.connect(uri, function(err, db) {
 	  if (err) throw err;
 	  var dbo = db.db("mongomean");
-	  var myquery = { _id: new mongo.ObjectId(idDepot), 'reparation._id': idReparation.toString()};
+	  var myquery = { _id: new mongo.ObjectId(idDepot), 'reparations._id': idReparation.toString()};
 	  //console.log(utilisateur._id);
 	  
 	  //var date= new Date(); 
 	  //depot.dateReception = date;
 
-	  var newvalues = { $set: { 'reparation.$.avancement': avancement } };
+	  var newvalues = { $set: { 'reparations.$.avancement': avancement } };
 	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
 	    if (err) throw err;
 	   // console.log(ress);
@@ -362,7 +339,7 @@ app.post('/ajouterreparationchoisissez/:idDepot/:idReparation/:nom/:prix',jsonPa
 
 	//reparation= reparationPrix.getReparationPrix_FromId(idReparation);
 
-	  var newvalues = { $push: {reparation: {'_id': idReparation, 'nom': nom , 'prix': prix , 'avancement': 0 } } };
+	  var newvalues = { $push: {reparations: {'_id': idReparation, 'nom': nom , 'prix': prix , 'avancement': 0 } } };
 	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
 	    if (err) throw err;
 	   // console.log(ress);
@@ -379,11 +356,33 @@ app.get('/reparation_prix',function(req,res) {
 	MongoClient.connect(uri,function (err,db) {
 		if(err) throw err;
 		var dbo=db.db("mongomean");
-		dbo.collection("reparationPrix").find({}).toArray(function (err,ress) {
+		dbo.collection("ReparationPrix").find({}).toArray(function (err,ress) {
 			db.close();
 			res.send(ress);
 		})
 	})
+});
+
+app.post('/bonSortie/:id',jsonParser, function (req,res) {
+	var depot=req.body;
+	//console.log('id '+ depot._id);
+	var id=req.params.id;
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var myquery = { _id: new mongo.ObjectId(id) };
+	  //console.log(utilisateur._id);
+	  var date= new Date(); 
+	  depot.dateSortie = date;
+
+	  var newvalues = { $set: { dateBonSortie : date } };
+	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
+	    if (err) throw err;
+	   // console.log(ress);
+	    db.close();
+	    res.send(ress);
+	  });
+	}); 
 });
 
 app.post('/recuperer_voiture/:id',jsonParser, function (req,res) {
