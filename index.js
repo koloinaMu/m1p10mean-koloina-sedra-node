@@ -853,3 +853,5 @@ app.get('/beneficeMensuel',function(req,res){
 app.listen(3000,function () {
 	console.log("start app");
 });
+
+module.exports=app;
