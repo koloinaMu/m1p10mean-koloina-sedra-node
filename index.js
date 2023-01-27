@@ -203,6 +203,18 @@ app.get('/dans_atelier',function(req,res) {
 	})
 });
 
+app.get('/les_pieces',function(req,res) {
+	//var utilisateur=req.body;
+	MongoClient.connect(uri,function (err,db) {
+		if(err) throw err;
+		var dbo=db.db("mongomean");
+		var query={ };
+		dbo.collection("Piece").find(query).toArray(function (err,ress) {
+			db.close();
+			res.send(ress);
+		})
+	})
+});
 
 app.post('/modifier_avancement/:avancement/:idReparation/:idDepot',jsonParser, function (req,res) {
 	var depot=req.body;
@@ -229,6 +241,29 @@ app.post('/modifier_avancement/:avancement/:idReparation/:idDepot',jsonParser, f
 	}); 
 });
 
+
+app.post('/ajouter_pieces/:idPiece/:nom/:prix/:idDepot',jsonParser, function (req,res) {
+	var depot=req.body;
+	//console.log('id '+ depot._id);
+	var idDepot=req.params.idDepot;
+	var idPiece=req.params.idPiece;
+	var nom=req.params.nom;
+	var prix=req.params.prix;
+	MongoClient.connect(uri, function(err, db) {
+	  if (err) throw err;
+	  var dbo = db.db("mongomean");
+	  var myquery = { _id: new mongo.ObjectId(idDepot) };
+	
+
+	  var newvalues = { $push: {piece: {'_id': idPiece, 'nom': nom , 'prix': prix  } } };
+	  dbo.collection("DepotVoiture").updateOne(myquery, newvalues, function(err, ress) {
+	    if (err) throw err;
+	   // console.log(ress);
+	    db.close();
+	    res.send(ress);
+	  });
+	}); 
+});
 
 
 
