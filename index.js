@@ -335,7 +335,7 @@ app.post('/ajouter_pieces/:idPiece/:nom/:prix/:idDepot',jsonParser, function (re
 	var idDepot=req.params.idDepot;
 	var idPiece=req.params.idPiece;
 	var nom=req.params.nom;
-	var prix=req.params.prix;
+	var prix=Number(req.params.prix);
 	MongoClient.connect(uri, function(err, db) {
 	  if (err) throw err;
 	  var dbo = db.db("mongomean");
@@ -362,7 +362,7 @@ app.post('/ajouterreparationchoisissez/:idDepot/:idReparation/:nom/:prix',jsonPa
 	var idDepot=req.params.idDepot;
 	var idReparation=req.params.idReparation;
 	var nom=req.params.nom;
-	var prix=req.params.prix;
+	var prix=Number(req.params.prix);
 	MongoClient.connect(uri, function(err, db) {
 	  if (err) throw err;
 	  var dbo = db.db("mongomean");
